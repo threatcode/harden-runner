@@ -85108,14 +85108,28 @@ function getRunnerUser() {
         return undefined;
     }
 }
+function getPrivilegeMode() {
+    try {
+        if (external_os_.userInfo().uid === 0) {
+            return "root";
+        }
+    }
+    catch (_a) {
+        // fall through to sudo
+    }
+    return "sudo";
+}
 function chownForFolder(newOwner, target) {
     if (!newOwner) {
         console.log(`Unable to determine runner user; skipping chown of ${target}`);
         return;
     }
-    let cmd = "sudo";
-    let args = ["chown", "-R", newOwner, target];
-    external_child_process_.execFileSync(cmd, args);
+    if (getPrivilegeMode() === "root") {
+        external_child_process_.execFileSync("chown", ["-R", newOwner, target]);
+    }
+    else {
+        external_child_process_.execFileSync("sudo", ["chown", "-R", newOwner, target]);
+    }
 }
 function isAgentInstalled(platform) {
     switch (platform) {
@@ -85689,11 +85703,14 @@ function installAgentBravo(configStr) {
         external_child_process_.execSync("chmod +x /home/agent/agent");
         external_fs_.writeFileSync("/home/agent/agent.json", configStr);
         const logStream = external_fs_.openSync("/home/agent/agent.stdout", "a");
-        const agentProcess = external_child_process_.spawn("sudo", ["/home/agent/agent"], {
+        const spawnOptions = {
             cwd: "/home/agent",
             detached: true,
             stdio: ["ignore", logStream, logStream],
-        });
+        };
+        const agentProcess = getPrivilegeMode() === "root"
+            ? external_child_process_.spawn("/home/agent/agent", [], spawnOptions)
+            : external_child_process_.spawn("sudo", ["/home/agent/agent"], spawnOptions);
         agentProcess.unref();
         const agentStatus = "/home/agent/agent.status";
         const deadline = Date.now() + 10000;
@@ -86381,7 +86398,7 @@ function installAgentForBravo(owner, bravoConfigStr) {
                 console.log("TLS is not enabled for this organization. Bravo agent installation skipped.");
                 return;
             }
-            external_child_process_.execSync("sudo mkdir -p /home/agent");
+            external_child_process_.execSync(getPrivilegeMode() === "root" ? "mkdir -p /home/agent" : "sudo mkdir -p /home/agent");
             chownForFolder(getRunnerUser(), "/home/agent");
             yield installAgentBravo(bravoConfigStr);
         }
