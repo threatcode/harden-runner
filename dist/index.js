@@ -31921,12 +31921,12 @@ function getPrivilegeMode() {
     }
     return "sudo";
 }
-function chownForFolder(newOwner, target) {
+function chownForFolder(newOwner, target, useDirectPrivileges = false) {
     if (!newOwner) {
         console.log(`Unable to determine runner user; skipping chown of ${target}`);
         return;
     }
-    if (getPrivilegeMode() === "root") {
+    if (useDirectPrivileges) {
         cp.execFileSync("chown", ["-R", newOwner, target]);
     }
     else {

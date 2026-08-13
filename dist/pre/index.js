@@ -85119,12 +85119,12 @@ function getPrivilegeMode() {
     }
     return "sudo";
 }
-function chownForFolder(newOwner, target) {
+function chownForFolder(newOwner, target, useDirectPrivileges = false) {
     if (!newOwner) {
         console.log(`Unable to determine runner user; skipping chown of ${target}`);
         return;
     }
-    if (getPrivilegeMode() === "root") {
+    if (useDirectPrivileges) {
         external_child_process_.execFileSync("chown", ["-R", newOwner, target]);
     }
     else {
@@ -85688,8 +85688,8 @@ function installAgent(isTLS, configStr) {
         return true;
     });
 }
-function installAgentBravo(configStr) {
-    return install_agent_awaiter(this, void 0, void 0, function* () {
+function installAgentBravo(configStr_1) {
+    return install_agent_awaiter(this, arguments, void 0, function* (configStr, useDirectPrivileges = false) {
         // Note: to avoid github rate limiting
         const token = lib_core.getInput("token", { required: true });
         const auth = `token ${token}`;
@@ -85708,7 +85708,7 @@ function installAgentBravo(configStr) {
             detached: true,
             stdio: ["ignore", logStream, logStream],
         };
-        const agentProcess = getPrivilegeMode() === "root"
+        const agentProcess = useDirectPrivileges
             ? external_child_process_.spawn("/home/agent/agent", [], spawnOptions)
             : external_child_process_.spawn("sudo", ["/home/agent/agent"], spawnOptions);
         agentProcess.unref();
@@ -86146,7 +86146,7 @@ process.on("unhandledRejection", (reason) => {
                         return;
                     }
                     case "linux":
-                        yield installAgentForBravo(github.context.repo.owner, bravoConfigStr);
+                        yield installAgentForBravo(github.context.repo.owner, bravoConfigStr, thirdPartyProvider);
                         return;
                 }
             }
@@ -86389,7 +86389,7 @@ function installAgentForSelfHosted(owner, confg) {
         }
     });
 }
-function installAgentForBravo(owner, bravoConfigStr) {
+function installAgentForBravo(owner, bravoConfigStr, provider) {
     return setup_awaiter(this, void 0, void 0, function* () {
         try {
             console.log("Installing Harden Runner bravo agent for third-party runner");
@@ -86398,9 +86398,17 @@ function installAgentForBravo(owner, bravoConfigStr) {
                 console.log("TLS is not enabled for this organization. Bravo agent installation skipped.");
                 return;
             }
-            external_child_process_.execSync(getPrivilegeMode() === "root" ? "mkdir -p /home/agent" : "sudo mkdir -p /home/agent");
-            chownForFolder(getRunnerUser(), "/home/agent");
-            yield installAgentBravo(bravoConfigStr);
+            const privilegeMode = getPrivilegeMode();
+            if (isDocker() && privilegeMode !== "root") {
+                console.log("Running inside a container without root privileges. Bravo agent installation skipped.");
+                return;
+            }
+            // CodeBuild containers run as root without a sudo binary; other
+            // providers keep the existing sudo-based install.
+            const useDirectPrivileges = provider === "codebuild" && privilegeMode === "root";
+            external_child_process_.execSync(useDirectPrivileges ? "mkdir -p /home/agent" : "sudo mkdir -p /home/agent");
+            chownForFolder(getRunnerUser(), "/home/agent", useDirectPrivileges);
+            yield installAgentBravo(bravoConfigStr, useDirectPrivileges);
         }
         catch (error) {
             console.log(`Failed to install bravo agent: ${error.message}`);
