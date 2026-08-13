@@ -37,7 +37,7 @@ import {
   installWindowsAgent,
 } from "./install-agent";
 
-import { chownForFolder, getRunnerUser, getPrivilegeMode, detectThirdPartyRunnerProvider, isAgentInstalled, isPlatformSupported, shouldDeployAgentOnSelfHosted } from "./utils";
+import { chownForFolder, getRunnerUser, getPrivilegeMode, detectThirdPartyRunnerProvider, isAgentInstalled, isPlatformSupported, shouldDeployAgentOnSelfHosted, ThirdPartyRunnerProvider } from "./utils";
 import { buildBravoConfig } from "./bravo-config";
 
 interface MonitorResponse {
@@ -329,7 +329,7 @@ process.on("unhandledRejection", (reason) => {
             return;
           }
           case "linux":
-            await installAgentForBravo(context.repo.owner, bravoConfigStr);
+            await installAgentForBravo(context.repo.owner, bravoConfigStr, thirdPartyProvider);
             return;
         }
       }
@@ -607,7 +607,11 @@ export async function installAgentForSelfHosted(owner: string, confg: Configurat
   }
 }
 
-export async function installAgentForBravo(owner: string, bravoConfigStr: string) {
+export async function installAgentForBravo(
+  owner: string,
+  bravoConfigStr: string,
+  provider: ThirdPartyRunnerProvider
+) {
   try {
     console.log("Installing Harden Runner bravo agent for third-party runner");
 
@@ -618,12 +622,23 @@ export async function installAgentForBravo(owner: string, bravoConfigStr: string
       return;
     }
 
-    cp.execSync(
-      getPrivilegeMode() === "root" ? "mkdir -p /home/agent" : "sudo mkdir -p /home/agent"
-    );
-    chownForFolder(getRunnerUser(), "/home/agent");
+    const privilegeMode = getPrivilegeMode();
 
-    await installAgentBravo(bravoConfigStr);
+    if (isDocker() && privilegeMode !== "root") {
+      console.log(
+        "Running inside a container without root privileges. Bravo agent installation skipped."
+      );
+      return;
+    }
+
+    // CodeBuild containers run as root without a sudo binary; other
+    // providers keep the existing sudo-based install.
+    const useDirectPrivileges = provider === "codebuild" && privilegeMode === "root";
+
+    cp.execSync(useDirectPrivileges ? "mkdir -p /home/agent" : "sudo mkdir -p /home/agent");
+    chownForFolder(getRunnerUser(), "/home/agent", useDirectPrivileges);
+
+    await installAgentBravo(bravoConfigStr, useDirectPrivileges);
   } catch (error) {
     console.log(`Failed to install bravo agent: ${error.message}`);
   }

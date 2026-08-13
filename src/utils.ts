@@ -44,12 +44,16 @@ export function getPrivilegeMode(): PrivilegeMode {
   return "sudo";
 }
 
-export function chownForFolder(newOwner: string | undefined, target: string) {
+export function chownForFolder(
+  newOwner: string | undefined,
+  target: string,
+  useDirectPrivileges: boolean = false
+) {
   if (!newOwner) {
     console.log(`Unable to determine runner user; skipping chown of ${target}`);
     return;
   }
-  if (getPrivilegeMode() === "root") {
+  if (useDirectPrivileges) {
     cp.execFileSync("chown", ["-R", newOwner, target]);
   } else {
     cp.execFileSync("sudo", ["chown", "-R", newOwner, target]);

@@ -6,7 +6,7 @@ import * as fs from "fs";
 import { verifyChecksum } from "./checksum";
 import { EOL } from "os";
 import { ARM64_RUNNER_MESSAGE, ARM64_WINDOWS_RUNNER_MESSAGE } from "./common";
-import { chownForFolder, getPrivilegeMode, getRunnerUser } from "./utils";
+import { chownForFolder, getRunnerUser } from "./utils";
 
 export async function installAgent(
   isTLS: boolean,
@@ -69,7 +69,10 @@ export async function installAgent(
   return true;
 }
 
-export async function installAgentBravo(configStr: string): Promise<boolean> {
+export async function installAgentBravo(
+  configStr: string,
+  useDirectPrivileges: boolean = false
+): Promise<boolean> {
   // Note: to avoid github rate limiting
   const token = core.getInput("token", { required: true });
   const auth = `token ${token}`;
@@ -98,10 +101,9 @@ export async function installAgentBravo(configStr: string): Promise<boolean> {
     detached: true,
     stdio: ["ignore", logStream, logStream],
   };
-  const agentProcess =
-    getPrivilegeMode() === "root"
-      ? cp.spawn("/home/agent/agent", [], spawnOptions)
-      : cp.spawn("sudo", ["/home/agent/agent"], spawnOptions);
+  const agentProcess = useDirectPrivileges
+    ? cp.spawn("/home/agent/agent", [], spawnOptions)
+    : cp.spawn("sudo", ["/home/agent/agent"], spawnOptions);
   agentProcess.unref();
 
   const agentStatus = "/home/agent/agent.status";
