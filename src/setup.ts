@@ -93,6 +93,7 @@ process.on("unhandledRejection", (reason) => {
       api_url: api_url,
       telemetry_url: STEPSECURITY_TELEMETRY_URL,
       allowed_endpoints: core.getInput("allowed-endpoints"),
+      denied_endpoints: core.getInput("denied-endpoints"),
       egress_policy: core.getInput("egress-policy"),
       disable_telemetry: core.getBooleanInput("disable-telemetry"),
       disable_sudo: core.getBooleanInput("disable-sudo"),
@@ -198,9 +199,15 @@ process.on("unhandledRejection", (reason) => {
       core.setFailed("egress-policy must be either audit or block");
     }
 
-    if (confg.egress_policy === "block" && confg.allowed_endpoints === "") {
+    const hasDeniedEndpoints = confg.denied_endpoints !== "";
+
+    if (
+      confg.egress_policy === "block" &&
+      confg.allowed_endpoints === "" &&
+      !hasDeniedEndpoints
+    ) {
       core.warning(
-        "egress-policy is set to block (default) and allowed-endpoints is empty. No outbound traffic will be allowed for job steps."
+        "egress-policy is set to block (default) and both allowed-endpoints and denied-endpoints are empty. No outbound traffic rules will be configured for job steps."
       );
     }
 
@@ -208,7 +215,11 @@ process.on("unhandledRejection", (reason) => {
       core.setFailed("disable-telemetry must be a boolean value");
     }
 
-    if (isValidEvent() && confg.egress_policy === "block") {
+    if (
+      isValidEvent() &&
+      confg.egress_policy === "block" &&
+      !hasDeniedEndpoints
+    ) {
       try {
         const cacheResult = await cache.saveCache(
           [path.join(__dirname, "cache.txt")],
@@ -565,6 +576,7 @@ export async function installAgentForSelfHosted(owner: string, confg: Configurat
       api_url: confg.api_url,
       api_key: uuidv4(),
       allowed_endpoints: confg.allowed_endpoints,
+      denied_endpoints: confg.denied_endpoints,
       egress_policy: confg.egress_policy,
       disable_telemetry: confg.disable_telemetry,
       disable_sudo: confg.disable_sudo,
