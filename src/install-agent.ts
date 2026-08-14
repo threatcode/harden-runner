@@ -69,7 +69,10 @@ export async function installAgent(
   return true;
 }
 
-export async function installAgentBravo(configStr: string): Promise<boolean> {
+export async function installAgentBravo(
+  configStr: string,
+  useDirectPrivileges: boolean = false
+): Promise<boolean> {
   // Note: to avoid github rate limiting
   const token = core.getInput("token", { required: true });
   const auth = `token ${token}`;
@@ -93,11 +96,14 @@ export async function installAgentBravo(configStr: string): Promise<boolean> {
   fs.writeFileSync("/home/agent/agent.json", configStr);
 
   const logStream = fs.openSync("/home/agent/agent.stdout", "a");
-  const agentProcess = cp.spawn("sudo", ["/home/agent/agent"], {
+  const spawnOptions: cp.SpawnOptions = {
     cwd: "/home/agent",
     detached: true,
     stdio: ["ignore", logStream, logStream],
-  });
+  };
+  const agentProcess = useDirectPrivileges
+    ? cp.spawn("/home/agent/agent", [], spawnOptions)
+    : cp.spawn("sudo", ["/home/agent/agent"], spawnOptions);
   agentProcess.unref();
 
   const agentStatus = "/home/agent/agent.status";
