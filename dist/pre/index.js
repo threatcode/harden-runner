@@ -86054,10 +86054,15 @@ process.on("unhandledRejection", (reason) => {
         if (confg.egress_policy !== "audit" && confg.egress_policy !== "block") {
             lib_core.setFailed("egress-policy must be either audit or block");
         }
-        const hasDeniedEndpoints = confg.denied_endpoints !== "";
+        // Mirrors the agent's isDenyList() decision: the deny list is enforced
+        // only when there are no allowed endpoints. Allowed endpoints always win.
+        const isDenyListMode = confg.denied_endpoints !== "" && confg.allowed_endpoints === "";
+        if (confg.denied_endpoints !== "" && confg.allowed_endpoints !== "") {
+            lib_core.info("Both allowed-endpoints and denied-endpoints are set. Only one of them should be set at a time. allowed-endpoints will be honored and denied-endpoints will be ignored.");
+        }
         if (confg.egress_policy === "block" &&
             confg.allowed_endpoints === "" &&
-            !hasDeniedEndpoints) {
+            !isDenyListMode) {
             lib_core.warning("egress-policy is set to block (default) and both allowed-endpoints and denied-endpoints are empty. No outbound traffic rules will be configured for job steps.");
         }
         if (confg.disable_telemetry !== true && confg.disable_telemetry !== false) {
@@ -86065,7 +86070,7 @@ process.on("unhandledRejection", (reason) => {
         }
         if (isValidEvent() &&
             confg.egress_policy === "block" &&
-            !hasDeniedEndpoints) {
+            !isDenyListMode) {
             try {
                 const cacheResult = yield cache.saveCache([external_path_.join(__dirname, "cache.txt")], cacheKey);
                 console.log(cacheResult);
