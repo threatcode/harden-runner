@@ -11,7 +11,6 @@ import {
   ArtifactCacheEntry,
   cacheKey,
   cacheFile,
-  CompressionMethod,
   isValidEvent,
 } from "./cache";
 import { Configuration, PolicyResponse } from "./interfaces";
@@ -56,6 +55,81 @@ process.on("unhandledRejection", (reason) => {
     reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
   core.warning(`Unhandled promise rejection during Pre-step: ${detail}`);
 });
+
+// Looks up the Actions cache blob host for the harden-runner cache entry.
+// Returns "<hostname>:443", or undefined when the entry does not exist yet.
+async function lookupCacheHost(): Promise<string | undefined> {
+  const cacheFilePath = path.join(__dirname, "cache.txt");
+  const compressionMethod = await utils.getCompressionMethod();
+  const cacheServiceVersion = getCacheServiceVersion();
+
+  if (cacheServiceVersion === "v2") {
+    const twirpClient = cacheTwirpClient.internalCacheTwirpClient();
+    const request: GetCacheEntryDownloadURLRequest = {
+      key: cacheKey,
+      restoreKeys: [],
+      version: utils.getCacheVersion([cacheFilePath], compressionMethod, false),
+    };
+    const response = await twirpClient.GetCacheEntryDownloadURL(request);
+    // On a cache miss the twirp response is {ok: false, signedDownloadUrl: ""};
+    // constructing a URL from that empty string would throw.
+    if (!response.ok || !response.signedDownloadUrl) {
+      return undefined;
+    }
+    return `${new URL(response.signedDownloadUrl).hostname}:443`;
+  }
+
+  if (cacheServiceVersion === "v1") {
+    const cacheEntry: ArtifactCacheEntry = await getCacheEntry(
+      [cacheKey],
+      [cacheFilePath],
+      { compressionMethod }
+    );
+    // On a cache miss getCacheEntry returns null.
+    if (!cacheEntry?.archiveLocation) {
+      return undefined;
+    }
+    return `${new URL(cacheEntry.archiveLocation).hostname}:443`;
+  }
+
+  return undefined;
+}
+
+// Resolves the Actions cache blob host, seeding the harden-runner cache entry
+// on the first run in a cache scope. Read-first: the constant-key entry can
+// only be reserved once per scope, so an unconditional save would log a
+// misleading reservation failure on every subsequent run. Returns undefined
+// when the host cannot be resolved; callers must not change the egress policy
+// in that case, the agent allows the cache endpoints implicitly and this
+// lookup is defense-in-depth only.
+async function resolveCacheHost(): Promise<string | undefined> {
+  core.info(`cache version: ${getCacheServiceVersion()}`);
+
+  try {
+    const host = await lookupCacheHost();
+    if (host) {
+      return host;
+    }
+  } catch (e) {
+    core.info(`Unable to fetch cacheURL ${e}`);
+  }
+
+  // First run in this cache scope: seed the entry, then look up again. If a
+  // concurrent job wins the reservation race, saveCache fails harmlessly and
+  // the second lookup reads the winner's entry.
+  try {
+    await cache.saveCache([path.join(__dirname, "cache.txt")], cacheKey);
+  } catch (exception) {
+    core.info(`Unable to seed cache entry: ${exception}`);
+  }
+
+  try {
+    return await lookupCacheHost();
+  } catch (e) {
+    core.info(`Unable to fetch cacheURL ${e}`);
+    return undefined;
+  }
+}
 
 (async () => {
   try {
@@ -229,87 +303,14 @@ process.on("unhandledRejection", (reason) => {
       confg.egress_policy === "block" &&
       !isDenyListMode
     ) {
-      try {
-        const cacheResult = await cache.saveCache(
-          [path.join(__dirname, "cache.txt")],
-          cacheKey
+      const cacheHost = await resolveCacheHost();
+      if (cacheHost) {
+        core.info(`Adding cacheHost: ${cacheHost} to allowed-endpoints`);
+        confg.allowed_endpoints += ` ${cacheHost}`;
+      } else {
+        core.info(
+          "Unable to resolve the Actions cache host. This should not cause any problems: the agent allows the cache endpoints implicitly, and this lookup is defense-in-depth only. Egress policy remains block."
         );
-        console.log(cacheResult);
-      } catch (exception) {
-        console.log(exception);
-      }
-
-      const cacheServiceVersion: string = getCacheServiceVersion();
-
-      switch (cacheServiceVersion) {
-        case "v2":
-          core.info(`cache version: v2`);
-          try {
-            const cacheFilePath = path.join(__dirname, "cache.txt");
-            core.info(`cacheFilePath ${cacheFilePath}`);
-
-            const twirpClient = cacheTwirpClient.internalCacheTwirpClient();
-            const compressionMethod = await utils.getCompressionMethod();
-
-            const request: GetCacheEntryDownloadURLRequest = {
-              key: cacheKey,
-              restoreKeys: [],
-              version: utils.getCacheVersion(
-                [cacheFilePath],
-                compressionMethod,
-                false
-              ),
-            };
-
-            const response = await twirpClient.GetCacheEntryDownloadURL(
-              request
-            );
-
-            const url = new URL(response.signedDownloadUrl);
-            core.info(
-              `Adding cacheHost: ${url.hostname}:443 to allowed-endpoints`
-            );
-
-            confg.allowed_endpoints += ` ${url.hostname}:443`;
-          } catch (e) {
-            core.info(`Unable to fetch cacheURL ${e}`);
-            if (confg.egress_policy === "block") {
-              core.info("Switching egress-policy to audit mode");
-              confg.egress_policy = "audit";
-            }
-          }
-          break;
-
-        case "v1":
-          core.info(`cache version: v1`);
-
-          try {
-            const compressionMethod: CompressionMethod =
-              await utils.getCompressionMethod();
-            const cacheFilePath = path.join(__dirname, "cache.txt");
-            core.info(`cacheFilePath ${cacheFilePath}`);
-
-            const cacheEntry: ArtifactCacheEntry = await getCacheEntry(
-              [cacheKey],
-              [cacheFilePath],
-              {
-                compressionMethod: compressionMethod,
-              }
-            );
-            const url = new URL(cacheEntry.archiveLocation);
-            core.info(
-              `Adding cacheHost: ${url.hostname}:443 to allowed-endpoints`
-            );
-
-            confg.allowed_endpoints += ` ${url.hostname}:443`;
-          } catch (exception) {
-            // some exception has occurred.
-            core.info(`Unable to fetch cacheURL ${exception}`);
-            if (confg.egress_policy === "block") {
-              core.info("Switching egress-policy to audit mode");
-              confg.egress_policy = "audit";
-            }
-          }
       }
     }
 
