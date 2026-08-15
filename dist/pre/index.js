@@ -86126,9 +86126,17 @@ function resolveCacheHost() {
         }
         // Mirrors the agent's isDenyList() decision: the deny list is enforced
         // only when there are no allowed endpoints. Allowed endpoints always win.
-        const isDenyListMode = confg.denied_endpoints !== "" && confg.allowed_endpoints === "";
+        let isDenyListMode = confg.denied_endpoints !== "" && confg.allowed_endpoints === "";
         if (confg.denied_endpoints !== "" && confg.allowed_endpoints !== "") {
             lib_core.info("Both allowed-endpoints and denied-endpoints are set. Only one of them should be set at a time. allowed-endpoints will be honored and denied-endpoints will be ignored.");
+        }
+        // The deny list is an enterprise (TLS) tier feature. The non-TLS agent
+        // does not understand denied_endpoints and would treat this config as
+        // block with an empty allow list, blocking all egress.
+        if (isDenyListMode && !(yield isTLSEnabled(github.context.repo.owner))) {
+            lib_core.info("denied-endpoints is supported on the enterprise tier only. Ignoring denied-endpoints for this run.");
+            confg.denied_endpoints = "";
+            isDenyListMode = false;
         }
         if (confg.egress_policy === "block" &&
             confg.allowed_endpoints === "" &&
