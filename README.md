@@ -76,7 +76,7 @@ To integrate Harden-Runner, follow these steps:
    ```yaml
    steps:
      - name: Harden Runner
-       uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
        with:
          egress-policy: audit
 
