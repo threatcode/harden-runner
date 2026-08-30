@@ -147,6 +147,10 @@ Includes all features in the **Community** tier, plus:
 - **Determine Minimum GITHUB_TOKEN Permissions:** Monitor outbound HTTPS requests to GitHub APIs to recommend the least-privilege permissions needed for your workflows, enhancing security by reducing unnecessary access.
 - **View the Name and Path of Every File Written During the Build Process:** Gain visibility into every file written to the build environment, including the ability to correlate file writes with processes, ensuring complete transparency.
 - **View Process Names and Arguments:** Monitor every process executed during the build process, along with its arguments, and navigate the process tree to detect suspicious activities.
+- **Centralized Policy Store:** Manage egress policies centrally from the StepSecurity dashboard instead of editing each workflow file. Learn more in the [Policy Store documentation](https://docs.stepsecurity.io/github-actions/harden-runner/policy-store).
+- **Baselines at Repository, Organization, and Cluster Level:** Create and manage baselines beyond the per-job level. Learn more in the [Baseline documentation](https://docs.stepsecurity.io/github-actions/harden-runner/baseline).
+- **Suppression Rules:** Suppress expected detections to reduce alert noise. Learn more in the [Suppression Rules documentation](https://docs.stepsecurity.io/github-actions/harden-runner/suppression-rules).
+- **Alert Notifications and SIEM Integration:** Receive alerts via email, Slack, and Microsoft Teams, and integrate detections with your SIEM solution.
 
 For a detailed comparison and more information, please visit our [Pricing Page](https://www.stepsecurity.io/pricing).
 
@@ -156,7 +160,7 @@ Explore the full feature set in the [Features Documentation](https://docs.stepse
 
 ## StepSecurity Maintained Actions
 
-Many popular third-party GitHub Actions are abandoned, maintained by a single person, or stuck on outdated runtimes. StepSecurity publishes [Maintained Actions](https://docs.stepsecurity.io/github-actions/actions/stepsecurity-maintained-actions): drop-in replacements that are actively maintained, security-reviewed, and kept current, including updates to the Node 24 runtime.
+Many popular third-party GitHub Actions are abandoned or stuck on outdated runtimes. StepSecurity publishes [Maintained Actions](https://docs.stepsecurity.io/github-actions/actions/stepsecurity-maintained-actions): drop-in replacements that are actively maintained, security-reviewed, and kept current, including updates to the Node 24 runtime.
 
 - **Free for public repositories**, no subscription required. Read the [announcement](https://www.stepsecurity.io/blog/stepsecurity-maintained-actions-are-now-free-for-public-repos).
 - **~500 actions and growing.** [Browse the full catalog](https://app.stepsecurity.io/action-advisor?tab=maintained).
