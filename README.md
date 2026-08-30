@@ -40,7 +40,8 @@ Harden-Runner secures over **25 million CI/CD workflow runs every week**, protec
 ## Quick Links
 - [Getting Started Guide](#getting-started)
 - [Why Choose Harden-Runner](#why-choose-harden-runner)
-- [Features and Capabilities](#features)
+- [Features and Pricing Tiers](#features-and-pricing-tiers)
+- [StepSecurity Maintained Actions (Free for Public Repos)](#stepsecurity-maintained-actions)
 - [Case Studies and Trusted Projects](#trusted-by-and-case-studies)
 - [Environment Compatibility Matrix](#environment-compatibility-matrix)
 - [How It Works](docs/how-it-works.md)
@@ -63,6 +64,9 @@ Learn how Harden-Runner works through the video below, which shows how it detect
 
 This guide walks you through the steps to set up and use Harden-Runner in your CI/CD workflows. For more details, refer to the [official documentation](https://docs.stepsecurity.io/harden-runner).
 
+> [!NOTE]
+> The Community tier is free for **public repositories on GitHub-hosted runners** and includes the core feature set. Advanced features, private repositories, and self-hosted runners (including ARC) require the Enterprise tier. See [Features and Pricing Tiers](#features-and-pricing-tiers) for what is in each tier.
+
 ### **Step 1: Add Harden-Runner to Your Workflow**
 
 To integrate Harden-Runner, follow these steps:
@@ -72,7 +76,7 @@ To integrate Harden-Runner, follow these steps:
    ```yaml
    steps:
      - name: Harden Runner
-       uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+       uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
        with:
          egress-policy: audit
 
@@ -108,11 +112,22 @@ Run your workflow. Once completed:
 
 ---
 
-## Features
+## Features and Pricing Tiers
 
-Harden-Runner offers a comprehensive suite of features to enhance the security of your CI/CD workflows, available in two tiers: **Community** (Free) and **Enterprise** (Paid).
+Harden-Runner offers a comprehensive suite of features to enhance the security of your CI/CD workflows, available in two tiers: **Community** (free) and **Enterprise** (paid). Two things determine what you get: **where your workflows run** decides whether the free tier is available at all, and **your tier** decides which features you get. The feature lists below show what is in each tier.
+
+| Where your workflows run | What's available |
+|--------------------------|------------------|
+| Public repositories on GitHub-hosted runners | **Community** features free; **Enterprise** features require a paid plan |
+| Private repositories (any runner type) | **Enterprise** (paid) only |
+| Self-hosted runners, including ARC and bare metal (public or private repositories) | **Enterprise** (paid) only |
+
+> [!IMPORTANT]
+> **Self-hosted runners require an Enterprise subscription, even for public repositories.** Without a subscription, the Harden-Runner action is a no-op on self-hosted runners: the step succeeds and your workflow passes, but nothing is monitored and no insights are generated. To enable Harden-Runner on your self-hosted runners, [start a free trial](https://www.stepsecurity.io/start-free).
 
 ### Community (Free)
+
+Available for public repositories running on GitHub-hosted runners:
 
 - **CI/CD-Aware Event Correlation:** Each outbound network connection, file operation, and process execution is mapped to the exact step, job, and workflow where it occurs.
 - **Automated Baseline Creation:** Harden-Runner builds a baseline for each job based on past outbound network connections.
@@ -126,16 +141,31 @@ Harden-Runner offers a comprehensive suite of features to enhance the security o
 Includes all features in the **Community** tier, plus:
 
 - **Support for Private Repositories:** Extend Harden-Runner's security capabilities to your private GitHub repositories.
-- **Support for Self-Hosted Runners:** Apply security controls and monitoring to self-hosted GitHub Actions runners.
-- **GitHub Checks Integration:** Enable GitHub Checks for Harden-Runner—if the baseline remains unchanged, the check passes; if it changes, the check fails, showing new outbound connections.
+- **Support for Self-Hosted Runners:** Apply security controls and monitoring to self-hosted GitHub Actions runners (VM, bare metal, and ARC), for both public and private repositories.
+- **GitHub Checks Integration:** Enable GitHub Checks for Harden-Runner. If the baseline remains unchanged, the check passes; if it changes, the check fails, showing new outbound connections.
 - **View Outbound GitHub API calls at the Job Level:** Monitor HTTPS requests to GitHub APIs
 - **Determine Minimum GITHUB_TOKEN Permissions:** Monitor outbound HTTPS requests to GitHub APIs to recommend the least-privilege permissions needed for your workflows, enhancing security by reducing unnecessary access.
 - **View the Name and Path of Every File Written During the Build Process:** Gain visibility into every file written to the build environment, including the ability to correlate file writes with processes, ensuring complete transparency.
 - **View Process Names and Arguments:** Monitor every process executed during the build process, along with its arguments, and navigate the process tree to detect suspicious activities.
+- **Centralized Policy Store:** Manage egress policies centrally from the StepSecurity dashboard instead of editing each workflow file. Learn more in the [Policy Store documentation](https://docs.stepsecurity.io/github-actions/harden-runner/policy-store).
+- **Baselines at Repository, Organization, and Cluster Level:** Create and manage baselines beyond the per-job level. Learn more in the [Baseline documentation](https://docs.stepsecurity.io/github-actions/harden-runner/baseline).
+- **Suppression Rules:** Suppress expected detections to reduce alert noise. Learn more in the [Suppression Rules documentation](https://docs.stepsecurity.io/github-actions/harden-runner/suppression-rules).
+- **Alert Notifications and SIEM Integration:** Receive alerts via email, Slack, and Microsoft Teams, and integrate detections with your SIEM solution.
 
 For a detailed comparison and more information, please visit our [Pricing Page](https://www.stepsecurity.io/pricing).
 
 Explore the full feature set in the [Features Documentation](https://docs.stepsecurity.io/harden-runner).
+
+---
+
+## StepSecurity Maintained Actions
+
+Many popular third-party GitHub Actions are abandoned or stuck on outdated runtimes. StepSecurity publishes [Maintained Actions](https://docs.stepsecurity.io/github-actions/actions/stepsecurity-maintained-actions): drop-in replacements that are actively maintained, security-reviewed, and kept current, including updates to the Node 24 runtime.
+
+- **Free for public repositories**, no subscription required. Read the [announcement](https://www.stepsecurity.io/blog/stepsecurity-maintained-actions-are-now-free-for-public-repos).
+- **~500 actions and growing.** [Browse the full catalog](https://app.stepsecurity.io/action-advisor?tab=maintained).
+- **Actively maintained:** dependency updates, runtime upgrades (such as Node 24), and defined SLAs for patching vulnerabilities.
+- **Hardened release process:** manual secure code review before onboarding, signed commits, mandatory peer review, and tag protection.
 
 ---
 
@@ -164,14 +194,14 @@ Harden-Runner is trusted by over 11,000 leading open-source projects and enterpr
 
 Harden-Runner is designed to work seamlessly across a variety of runner environments, providing consistent security insights and protections regardless of where your workflows execute. For self-hosted runners, audit mode is deployed directly to the runner infrastructure without requiring any changes to your existing workflows. For more details, refer to the [official documentation](https://docs.stepsecurity.io/harden-runner).
 
-| Environment Type | Compatibility | Audit Mode Deployment | Workflow Changes for Audit/Block Mode |
-|------------------|---------------|--------------------------|-------------------|
-| GitHub-hosted runners (Linux) | ✅ Full support | Add Harden-Runner Action to workflow | Yes |
-| GitHub-hosted runners (Windows, macOS) | ✅ Audit mode only | Add Harden-Runner Action to workflow | Yes |
-| Self-hosted VM runners | ✅ Full support | Include agent in runner image | No |
-| Self-hosted bare-metal runners | ✅ Full support | Install agent as a service | No |
-| Actions Runner Controller (ARC) | ✅ Full support | Deploy as DaemonSet | No |
-| RunsOn Runners | ✅ Full support | Pre-integrated | No |
+| Environment Type | Compatibility | Audit Mode Deployment | Workflow Changes for Audit/Block Mode | Free Community Tier |
+|------------------|---------------|--------------------------|-------------------|---------------------|
+| GitHub-hosted runners (Linux) | ✅ Full support | Add Harden-Runner Action to workflow | Yes | ✅ Public repos ([Community features](#community-free) only) |
+| GitHub-hosted runners (Windows, macOS) | ✅ Audit mode only | Add Harden-Runner Action to workflow | Yes | ✅ Public repos ([Community features](#community-free) only) |
+| Self-hosted VM runners | ✅ Full support | Include agent in runner image | No | ❌ Enterprise subscription required |
+| Self-hosted bare-metal runners | ✅ Full support | Install agent as a service | No | ❌ Enterprise subscription required |
+| Actions Runner Controller (ARC) | ✅ Full support | Deploy as DaemonSet | No | ❌ Enterprise subscription required |
+| RunsOn Runners | ✅ Full support | Pre-integrated | No | ❌ Enterprise subscription required |
 
 ## How It Works
 
